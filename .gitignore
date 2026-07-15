@@ -1,0 +1,3 @@
+# The packaging plan is a local development artifact, not shipped content:
+# it records machine-specific and private-project details from the port.
+docs/SMALLCONTEXT-PLAN.md
