@@ -1,0 +1,18 @@
+{
+  "name": "smallcontext",
+  "version": "0.1.0",
+  "description": "Demotes auto-compact to a survivable flush: a bundled checkpoint procedure keeps continuity on disk, and a SessionStart hook re-orients the session from disk after every compaction.",
+  "author": {
+    "name": "stevelautus"
+  },
+  "homepage": "https://github.com/stevelautus/smallcontext",
+  "repository": "https://github.com/stevelautus/smallcontext",
+  "license": "Apache-2.0",
+  "keywords": [
+    "context",
+    "compaction",
+    "continuity",
+    "hooks",
+    "long-running-sessions"
+  ]
+}
