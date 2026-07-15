@@ -1,9 +1,9 @@
 # Context recycling procedure (smallcontext)
 
-Referenced by the smallplans run skills (`stream-work`, `implement-plan`, `plan-feature`) when that
-plugin is installed; any long-running session can also be told to follow this procedure directly. This
-file is the single tweak point: edit the threshold or the procedure here and every referencing skill
-inherits the change. Design rationale and rollback: the smallcontext plugin's README and DESIGN.md.
+Referenced by the smallplans skills (`stream-work`, `implement-plan`, `plan-feature`) when that plugin
+is installed; any long-running session can also be told to follow this procedure directly. This file is
+the single tweak point: edit the threshold or the procedure here and every referencing skill inherits
+the change. Design rationale and rollback: the smallcontext plugin's README and DESIGN.md.
 
 ## Why
 
