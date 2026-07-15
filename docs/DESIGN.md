@@ -111,9 +111,15 @@ The mechanism has been exercised end to end rather than assumed:
 - Both hook scripts were run against simulated hook input covering every branch — handoff present and
   absent, procedure file present and absent — asserting valid JSON output and, critically, that an
   existing procedure file is never overwritten.
-- A scratch session with a manual `/compact` confirmed the re-orient injection arrives verbatim in the
-  rebuilt context, and that it coexists with other SessionStart hooks from unrelated tooling rather than
-  displacing them. Multiple hooks' `additionalContext` outputs concatenate.
+- Installed as a plugin from a marketplace, a fresh session quoted the session-start steering back
+  verbatim, confirming the injection arrives intact and carries its attribution prefix.
+- A scratch session with a manual `/compact` confirmed the re-orient injection arrives in the rebuilt
+  context, and that it coexists with other SessionStart hooks rather than displacing them — multiple
+  hooks' `additionalContext` outputs concatenate, and a plugin-registered `compact` matcher is honored
+  exactly like a settings-registered one.
+- The never-overwrite guarantee was confirmed against a machine that already had a procedure file in
+  place: installing and running the plugin left that file byte-for-byte unchanged, verified by checksum
+  and by the file still carrying its local edits afterwards.
 - The usage measurement one-liner was validated against a live session transcript.
 - The 1M-window inertness described above was found *because* a real run failed to compact when it
   should have; the two-variable fix was confirmed against a subsequent run.
