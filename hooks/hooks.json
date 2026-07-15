@@ -1,0 +1,24 @@
+{
+  "description": "Materializes the bundled checkpoint procedure and injects compaction steering at session start; re-orients the session from disk after every compaction.",
+  "hooks": {
+    "SessionStart": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "\"${CLAUDE_PLUGIN_ROOT}\"/scripts/session-start.sh"
+          }
+        ]
+      },
+      {
+        "matcher": "compact",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "\"${CLAUDE_PLUGIN_ROOT}\"/scripts/compact-reorient.sh"
+          }
+        ]
+      }
+    ]
+  }
+}
