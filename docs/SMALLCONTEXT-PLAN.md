@@ -227,21 +227,25 @@ content. **Acceptance criteria — the README must contain, in roughly this orde
    `~/.claude/handoffs/<slug>/ROLLING-HANDOFF.xml` — written **only** when a session actually follows
    the checkpoint procedure, not by the plugin autonomously. Nothing else is read or written.
 4. **Install** — marketplace add (GitHub form) + enable, and the local-checkout directory form for
-   development; exact commands.
-5. **Manual setup (the only one): the two env vars** — the `env` block snippet
+   development; exact commands. Cover both enablement scopes: user-wide (all projects) and
+   per-project settings for users who want it only in select repos.
+5. **Per-project setup: none — say so explicitly.** No bindings doc, no project config, no CLAUDE.md
+   edits; enable it and every project is covered. (This is a deliberate design property; the README
+   states it rather than leaving the reader to wonder what they forgot.)
+6. **Manual setup (the only one): the two env vars** — the `env` block snippet
    (`CLAUDE_AUTOCOMPACT_PCT_OVERRIDE`, `CLAUDE_CODE_AUTO_COMPACT_WINDOW`) with two sentences on what
    they do and the **tuning invariant** (keep RECYCLING.md's refresh threshold below the auto-compact
    trigger for the smallest window in use). Deeper math → DESIGN.md link.
-6. **Using it** — for smallplans users: automatic at checkpoints. Standalone: tell any long-running
+7. **Using it** — for smallplans users: automatic at checkpoints. Standalone: tell any long-running
    session to follow `~/.claude/context-kit/RECYCLING.md` at its checkpoints.
-7. **Test your install** — the 2-minute recipe: NEW session (hooks snapshot at session start), exchange
+8. **Test your install** — the 2-minute recipe: NEW session (hooks snapshot at session start), exchange
    messages, `/compact`, ask the session to quote what was just injected.
-8. **Tuning & maintenance** — edit the threshold in the materialized file (the plugin never overwrites
+9. **Tuning & maintenance** — edit the threshold in the materialized file (the plugin never overwrites
    it); delete the file to re-materialize the bundled version after a plugin update.
-9. **Uninstall / rollback** — disable the plugin (hooks deactivate with it); leftovers are inert and
-   removable at leisure: the materialized RECYCLING.md, rolling handoffs under `~/.claude/handoffs/`,
-   the manually-set env vars.
-10. **Link to DESIGN.md** for rationale and forensics.
+10. **Uninstall / rollback** — disable the plugin (hooks deactivate with it); leftovers are inert and
+    removable at leisure: the materialized RECYCLING.md, rolling handoffs under `~/.claude/handoffs/`,
+    the manually-set env vars.
+11. **Link to DESIGN.md** for rationale and forensics.
 
 Length discipline: if a section can't be skimmed in ~15 seconds, its detail belongs in DESIGN.md.
 
@@ -377,7 +381,7 @@ None. No database, no schema, no data migrations of any kind.
 
 ## 11. Ratification block
 
-**Status: DRAFT — not ratified.**
+**Status: RATIFIED 2026-07-15 (live review, Steve).** Ratified with one amendment applied pre-ratification: §4.6 install criterion expanded to cover both enablement scopes, and an explicit "per-project setup: none" criterion added (renumbering the list to 11 items).
 
 Ratification covers exactly:
 
