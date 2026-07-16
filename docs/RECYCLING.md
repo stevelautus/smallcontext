@@ -37,10 +37,29 @@ then only has to not-poison; it no longer has to carry the run.
 3. **Below threshold** → continue, nothing else to do.
 
 4. **At or above threshold** → refresh the rolling handoff, then continue working:
-   - Path: `~/.claude/handoffs/<slug>/ROLLING-HANDOFF.xml`, where `<slug>` is:
+   - Path: `~/.claude/handoffs/<slug>/ROLLING-HANDOFF.xml`, where `<slug>` depends on
+     `SMALLCONTEXT_SLUG_MODE` (must match the compact-reorient hook's derivation exactly, so it
+     re-reads the same file it wrote). Default `repo`:
      ```bash
      ROOT="$(git rev-parse --show-toplevel 2>/dev/null || pwd)"
      SLUG="$(basename "$ROOT")-$(printf '%s' "$ROOT" | shasum | cut -c1-8)"
+     ```
+     When `SMALLCONTEXT_SLUG_MODE=session` (set it when you launch several sessions from one repo
+     root — e.g. worktree streams whose cwd is the main checkout — so each gets its own silo instead
+     of clobbering a shared handoff):
+     ```bash
+     # SID MUST be YOUR OWN session id. The authoritative source is your transcript_path basename
+     # with .jsonl stripped — that filename IS your session id, exactly what the hook reads from
+     # .session_id. (Your scratchpad path's UUID matches it today too, but the transcript basename
+     # is the defined-equal source.) Do NOT derive it from the newest *.jsonl in the project dir:
+     # in a shared project dir that heuristic can grab a sibling session's id. Hardcode your own.
+     SID="<your-own-session-uuid>"
+     COMMON="$(git rev-parse --path-format=absolute --git-common-dir 2>/dev/null)"
+     # [ -d ] not [ -n ]: on git <2.31 rev-parse echoes the unknown --path-format token, so guard
+     # on a real directory. Session-mode worktree resolution needs git >= 2.31; below it the slug
+     # keys on the cwd basename, so run this from the same dir the hook sees (the main checkout).
+     if [ -d "$COMMON" ]; then REPO="$(basename "$(dirname "$COMMON")")"; else REPO="$(basename "$PWD")"; fi
+     SLUG="$REPO-$(printf '%s' "$SID" | cut -c1-8)"
      ```
    - Content: an XML document with the sections `metadata`, `orientation`, `reference_documents`,
      `memory_context`, `files_in_play`, `project_state`, `session_work_log`, `next_session_brief`,

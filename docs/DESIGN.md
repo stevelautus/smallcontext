@@ -84,6 +84,54 @@ Sessions on a large-window model will cross the 60k refresh threshold early and 
 above it. That is harmless by design: past the threshold the procedure re-refreshes only every ~20k
 tokens of growth or at the next phase boundary, not at every checkpoint.
 
+## Slug keying
+
+The rolling handoff lives at `~/.claude/handoffs/<slug>/ROLLING-HANDOFF.xml`, and two independent actors
+must derive the *same* `<slug>`: the compact-reorient hook (which reads the handoff after a compaction)
+and the session that wrote it (following the checkpoint procedure). Whatever keys the slug has to be
+computable by both, from what each can see.
+
+The original key is the git top-level path: `<toplevel-basename>-<hash of the toplevel path>`. That is
+one silo per repository — correct until two sessions share a repository, and one very common workflow
+does exactly that.
+
+**The collision.** Start a session at a repo's root, then have it create a git worktree and work inside
+the worktree. The session's cwd stays the main checkout, so `git rev-parse --show-toplevel` returns the
+main repo's path — for that session and for every other session started the same way. They all hash to
+one slug and overwrite each other's `ROLLING-HANDOFF.xml`. Two concurrent worktree streams silently
+share, and clobber, a single handoff. (The usage-measurement race in *Known limitations* below is a
+documented limitation that only mistimes a refresh; this collision was undocumented and loses data.)
+
+**Why the session id is the right key.** Weigh the candidates against the "both actors must compute it
+independently" constraint:
+
+- *Repo-path hash* — today's key. Collides, as above.
+- *Worktree or branch* — the ideal semantic key, but the hook cannot derive it. After a compaction the
+  hook reliably sees only the session's cwd (the main checkout) plus its hook-input JSON; it has no way
+  to know which worktree the session subsequently created. Making it work would need the session to drop
+  a pointer file the hook then reads — more moving parts, and a new thing to go stale.
+- *Session id* — unique per concurrent session, stable across a compaction (a compaction keeps the same
+  `session_id`), and derivable by *both* sides: the hook reads `.session_id` from its input JSON
+  (falling back to the basename of `.transcript_path`), and the writing session knows its own id from
+  its transcript / scratchpad path. It is the only collision-free key both actors can compute without
+  coordinating.
+
+So `session` mode keys on `<repo-basename>-<first 8 of the session id>`. The repo basename comes from
+the git *common* dir (`git rev-parse --path-format=absolute --git-common-dir`), not the top-level, so a
+main checkout and its linked worktrees still resolve to one name — only the session-id suffix separates
+the silos. (`--path-format=absolute` needs git ≥ 2.31; on older git the derivation degrades cleanly to
+the session's working-directory basename instead of emitting an error.)
+
+**The trade-off.** A `session`-mode handoff is per-session: a *different* session on the same worktree
+later cannot resume from it. That is acceptable because the handoff's only job is intra-session
+compaction survival — surviving the flush *within* one run. Cross-session continuity is a separate
+concern, already carried by in-repo plan / progress / charter docs any session can pick up.
+
+**Why the default stays `repo`.** Switching keys would change every existing install's slug, orphaning
+handoffs mid-run. So the new behavior is opt-in: unset or `SMALLCONTEXT_SLUG_MODE=repo` reproduces the
+original slug byte-for-byte, and only `SMALLCONTEXT_SLUG_MODE=session` selects the new keying. Anyone who
+never launches multiple sessions from one repo root never has to think about it.
+
 ## Known limitations
 
 - **The summarizer's prompt is not ours.** The injected steering biases what the summary preserves; it
@@ -123,6 +171,15 @@ The mechanism has been exercised end to end rather than assumed:
 - The usage measurement one-liner was validated against a live session transcript.
 - The 1M-window inertness described above was found *because* a real run failed to compact when it
   should have; the two-variable fix was confirmed against a subsequent run.
+- **`SMALLCONTEXT_SLUG_MODE`** was exercised by running the compact-reorient hook against simulated
+  hook input under a sandbox `HOME`, over disposable git fixtures (a main repo plus a linked worktree):
+  repo mode (env unset) produced output byte-for-byte identical to the pre-change script and still
+  resolved a handoff placed at the original path-hash slug; `session` mode with `session_id` present
+  keyed on its first 8 chars, and with `session_id` absent fell back to the `transcript_path` basename;
+  and a run whose cwd was the *linked worktree* resolved the repo basename from the git common dir — so
+  it keyed on the main-repo name rather than leaking the worktree directory name. Every case asserted
+  valid JSON on stdout and empty stderr. The session-start hook was run separately to confirm its
+  no-overwrite guarantee still held by checksum.
 
 The case that remains hardest to observe deliberately is a mid-turn *automatic* compaction interrupting
 a long autonomous run — it self-confirms the first time a run crosses the line, which on a tuned setup

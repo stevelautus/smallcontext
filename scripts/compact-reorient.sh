@@ -10,8 +10,26 @@ INPUT=$(cat)
 CWD=$(printf '%s' "$INPUT" | jq -r '.cwd // empty' 2>/dev/null)
 [ -z "$CWD" ] && CWD="$PWD"
 
-ROOT=$(git -C "$CWD" rev-parse --show-toplevel 2>/dev/null || printf '%s' "$CWD")
-SLUG="$(basename "$ROOT")-$(printf '%s' "$ROOT" | shasum | cut -c1-8)"
+# Slug keying (see docs/DESIGN.md "Slug keying"). Default "repo" is byte-identical to
+# the original: <toplevel-basename>-<hash of the toplevel path>. "session" keys on the
+# session id instead, so several sessions launched from one repo root (e.g. worktree
+# streams whose cwd is the main checkout) each get their own handoff silo.
+if [ "${SMALLCONTEXT_SLUG_MODE:-repo}" = "session" ]; then
+  SID=$(printf '%s' "$INPUT" | jq -r '.session_id // empty' 2>/dev/null)
+  if [ -z "$SID" ]; then
+    TP=$(printf '%s' "$INPUT" | jq -r '.transcript_path // empty' 2>/dev/null)
+    SID=$(basename "$TP" .jsonl 2>/dev/null)
+  fi
+  COMMON=$(git -C "$CWD" rev-parse --path-format=absolute --git-common-dir 2>/dev/null)
+  # Guard on a real directory, not just non-empty: git <2.31 lacks --path-format and rev-parse
+  # echoes that unknown token back to stdout (pass-through), so COMMON can be non-empty junk.
+  # [ -d ] rejects it and falls through to the CWD basename (correct when cwd is the main checkout).
+  if [ -d "$COMMON" ]; then REPO=$(basename "$(dirname "$COMMON")"); else REPO=$(basename "$CWD"); fi
+  SLUG="$REPO-$(printf '%s' "$SID" | cut -c1-8)"
+else
+  ROOT=$(git -C "$CWD" rev-parse --show-toplevel 2>/dev/null || printf '%s' "$CWD")
+  SLUG="$(basename "$ROOT")-$(printf '%s' "$ROOT" | shasum | cut -c1-8)"
+fi
 DIR="$HOME/.claude/handoffs/$SLUG"
 
 NEWEST=""
