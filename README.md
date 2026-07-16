@@ -57,12 +57,18 @@ And these are **read**:
 | Path | Read when |
 |---|---|
 | `~/.claude/handoffs/<slug>/` | After a compaction, to find the rolling handoff. |
-| Your repo's git top-level | After a compaction, to derive `<slug>` (`git rev-parse`). |
+| Your repo's git top-level (or common dir) | After a compaction, to derive `<slug>` (`git rev-parse`). |
 | `~/.claude/projects/<cwd-slug>/*.jsonl` | **Only when a session follows the checkpoint procedure**, to measure its own context usage. These are your session transcripts; they are read, never written or transmitted. |
 
-`<slug>` is `<git-toplevel-basename>-<hash-of-path>` — falling back to the working directory when it
-isn't a repo — giving each worktree its own silo. Nothing outside these paths is touched, and nothing
-leaves your machine.
+`<slug>` depends on `SMALLCONTEXT_SLUG_MODE` (see [Manual setup](#manual-setup-three-environment-variables)):
+
+- **`repo`** (default) — `<git-toplevel-basename>-<hash-of-path>`, falling back to the working directory
+  when it isn't a repo. One silo per git top-level.
+- **`session`** — `<repo-basename>-<first 8 of the session id>`, the repo basename taken from the git
+  *common* dir so a main checkout and its linked worktrees resolve to the same name. One silo per
+  session, so several sessions launched from one repo root don't share (and clobber) a handoff.
+
+Nothing outside these paths is touched, and nothing leaves your machine.
 
 ## Install
 
@@ -108,10 +114,11 @@ There isn't any. No bindings document, no project config, no `CLAUDE.md` edits, 
 registration. Enable it once at user scope and every project is covered — including repos you clone
 tomorrow. This is deliberate, and it's stated here so you don't go looking for the step you missed.
 
-## Manual setup: two environment variables
+## Manual setup: three environment variables
 
 This is the only manual step. Plugins cannot ship settings `env` variables, so these go in your
-`~/.claude/settings.json` yourself:
+`~/.claude/settings.json` yourself. The first two are required; the third is optional and defaults to
+the plugin's original behavior:
 
 ```json
 {
@@ -135,8 +142,36 @@ setting is correct whether you run a 200k or a 1M model — you are not inflatin
 > before a rolling handoff exists, and there is nothing to re-orient from. The values above satisfy it.
 > If you lower the percentage, re-check that ordering; move both numbers or neither.
 
-Worked numbers, their caveats, and the forensics behind that second variable are in
+Worked numbers, their caveats, and the forensics behind `CLAUDE_CODE_AUTO_COMPACT_WINDOW` are in
 [docs/DESIGN.md](docs/DESIGN.md).
+
+### `SMALLCONTEXT_SLUG_MODE` — optional, defaults to `repo`
+
+Controls how the rolling handoff's directory `<slug>` is keyed. **Leave it unset (or `"repo"`) and
+nothing changes** — the slug stays byte-for-byte what it has always been, one silo per git top-level.
+
+Set it to `"session"` when you routinely launch **several sessions from one repo root** — most commonly
+when a session creates a git worktree and works inside it. Every such session has the same git
+top-level, so in `repo` mode they all resolve to one slug and **overwrite each other's handoff**. In
+`session` mode the slug becomes `<repo-basename>-<first 8 of the session id>` instead, giving each
+session its own silo (the repo basename is taken from the git *common* dir — via
+`git rev-parse --path-format=absolute`, which needs git ≥ 2.31 — so a main checkout and its linked
+worktrees still share one name; on older git it degrades to the working-directory basename):
+
+```json
+{
+  "env": {
+    "CLAUDE_AUTOCOMPACT_PCT_OVERRIDE": "38",
+    "CLAUDE_CODE_AUTO_COMPACT_WINDOW": "1000000",
+    "SMALLCONTEXT_SLUG_MODE": "session"
+  }
+}
+```
+
+The trade-off: a `session`-mode handoff is not resumable by a *different* session later — its job is
+intra-session compaction survival, and cross-session continuity already lives in your in-repo
+plan/progress docs. The default stays `repo` so existing installs' slugs are untouched. See
+[docs/DESIGN.md](docs/DESIGN.md) for the collision forensics and why the session id is the right key.
 
 ## Using it
 

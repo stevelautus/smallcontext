@@ -1,6 +1,6 @@
 {
   "name": "smallcontext",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Demotes auto-compact to a survivable flush: a bundled checkpoint procedure keeps continuity on disk, and a SessionStart hook re-orients the session from disk after every compaction.",
   "author": {
     "name": "stevelautus"
